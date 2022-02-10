@@ -120,7 +120,6 @@ if __name__ == '__main__':
     database = get_database()
     func_list = get_function_list()
     allowed_list = args[1:]
-    func_list.append("test")
     if binary_name in database["projects"].keys():
         allowed_list.extend(database["projects"][binary_name]["allowedFunctions"])
 
