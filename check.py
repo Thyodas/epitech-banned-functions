@@ -15,6 +15,9 @@ from rich import box
 
 import re
 
+flag_all = False
+compiler_functions = ["__cxa_finalize", "__stack_chk_fail"]
+
 def execute_gdb(binary_name):
     os.system(f"gdb '{binary_name}' -ex 'source gdb_script.py' -ex \
 'quit' > /dev/null")
@@ -44,11 +47,17 @@ def manage_args(args):
 expected 1.\nTry again with -h for help.')
         sys.exit(1)
 
-    if args[0] == '-h' or args[0] == '--help':
-        print("Usage: check.py {options | binary_name}\n\
+    flag_list = list(filter(lambda str: str[0] == '-', args[1:]))
+    for flag in flag_list:
+        if '-h' in args or '--help' in args:
+            print("Usage: check.py {options | binary_name} \[allowed_function1, allowed_function2 ...]\n\
 Options:\n\
-\t-h, --help Show this message")
-        sys.exit(0)
+\t-h, --help\tShow this message.\n\
+\t-a, --all\tShow all functions, even functions not added by user but by compiler.")
+            sys.exit(0)
+        if flag == "-a" or flag =="--all":
+            global flag_all
+            flag_all = True
 
 def match_database(function, allowed_functions):
     for regex in allowed_functions:
@@ -63,15 +72,16 @@ def show_result_with_data(func_list, allowed_list):
     warning_nb = 0
     banned_nb = 0
     result_table = Table(title="", show_lines=False, expand="True", box=box.ROUNDED)
-    result_table.add_column(Text("Function", style="bold"))
-    result_table.add_column(Text("Result", style="bold"))
+    result_table.add_column(Text("Functions", style="bold"))
+    result_table.add_column(Text("Results", style="bold"))
     for func in func_list:
         if match_database(func, allowed_list):
             result_table.add_row(func, "[bold green]:heavy_check_mark:")
             allowed_nb += 1
-        elif func[0] == '_':
-            result_table.add_row(f"[bold yellow]{func}", "[yellow][reverse] WARNING [/reverse] Unknown function")
-            warning_nb += 1
+        elif func in compiler_functions:
+            if flag_all:
+                result_table.add_row(f"[bold yellow]{func}", "[yellow][reverse] WARNING [/reverse] Unknown function")
+                warning_nb += 1
         else:
             result_table.add_row(f"[bold red]{func}", "[red][reverse] ALERT [/reverse] Banned function")
             banned_nb += 1
@@ -80,17 +90,23 @@ def show_result_with_data(func_list, allowed_list):
 
 def show_result_without_data(func_list):
     result_table = Table(title="", show_lines=False, expand="True", box=box.ROUNDED)
-    result_table.add_column(Text("Function", style="bold"))
+    result_table.add_column(Text("Functions", style="bold"))
     for func in func_list:
         result_table.add_row(func)
     print(result_table)
 
 def show_recap(banned_nb, warning_nb, allowed_nb):
     recap_table = Table(title_style="bold not italic", expand=True, box=None)
+    banned_text = Text(str(banned_nb), style="dim") if banned_nb == 0 else Text(str(banned_nb))
+    warning_text = Text(str(warning_nb), style="dim") if warning_nb == 0 else Text(str(warning_nb))
+    allowed_text = Text(str(allowed_nb), style="dim") if allowed_nb == 0 else Text(str(allowed_nb))
     recap_table.add_column(Text("Banned"), justify="center", style="red bold")
-    recap_table.add_column(Text("Warning"), justify="center", style="bold yellow")
     recap_table.add_column(Text("Allowed"), justify="center", style="bold green")
-    recap_table.add_row(str(banned_nb), str(warning_nb), str(allowed_nb))
+    if flag_all:
+        recap_table.add_column(Text("Warning"), justify="center", style="bold yellow")
+        recap_table.add_row(banned_text, warning_text, allowed_text)
+    else:
+        recap_table.add_row(banned_text, allowed_text)
     print(Panel(recap_table))
 
 def show_manually_added(list):
@@ -119,7 +135,8 @@ if __name__ == '__main__':
     binary_name = args[0].split('/')[-1]
     database = get_database()
     func_list = get_function_list()
-    allowed_list = args[1:]
+    manually_added = list(filter(lambda str: str[0] != '-', args[1:]))
+    allowed_list = manually_added.copy()
     if binary_name in database["projects"].keys():
         allowed_list.extend(database["projects"][binary_name]["allowedFunctions"])
 
@@ -127,16 +144,16 @@ if __name__ == '__main__':
         print(Panel(Align(f"[bold]Unknown project [green]{binary_name}[/green]", align="center")))
         show_result_without_data(func_list)
         print(Panel("[blue][reverse] INFO [/reverse] This is just the list of all functions found in the binary. \
-Allowed functions are detected via the binary name. You can manually add allowed functions via arguments."))
+Allowed functions are detected via the binary name. You can manually add allowed functions via arguments.", style="blue"))
     else:
         show_title(binary_name, database)
-        show_manually_added(args[1:])
+        show_manually_added(manually_added)
         banned_nb, warning_nb, allowed_nb = show_result_with_data(func_list, allowed_list)
         show_recap(banned_nb, warning_nb, allowed_nb)
-        if warning_nb > 0:
-            print(Panel("[yellow][reverse] WARNING [/reverse] Some warnings require your attention."))
+        if warning_nb > 0 and flag_all:
+            print(Panel("[yellow][reverse] WARNING [/reverse] Some warnings require your attention.", style="yellow"))
         if banned_nb > 0:
-            print(Panel("[red][reverse] ALERT [/reverse] Banned functions were detected!"))
-            exit(1)
+            print(Panel("[red][reverse] ALERT [/reverse] Banned functions were detected!", style="red"))
+            sys.exit(1)
         if banned_nb == 0 and warning_nb == 0:
-            print(Panel("[green][reverse] OK [/reverse] All good, no problem found!"))
+            print(Panel("[green][reverse] OK [/reverse] All good, no problem found!", style="green"))
