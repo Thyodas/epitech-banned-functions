@@ -1,0 +1,26 @@
+{
+    "projects": {
+        "bsq":{
+            "projectName":"BSQ",
+            "module":"B-CPE-110",
+            "allowedFunctions": [
+                "open",
+                "read",
+                "write",
+                "close",
+                "malloc",
+                "free",
+                "stat"
+            ]
+        },
+        "push_swap":{
+            "projectName":"Push Swap",
+            "module":"B-CPE-110",
+            "allowedFunctions": [
+                "write",
+                "malloc",
+                "free"
+            ]
+        }
+    }
+}
