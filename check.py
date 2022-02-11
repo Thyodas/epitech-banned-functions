@@ -92,6 +92,8 @@ def show_result_without_data(func_list):
     result_table = Table(title="", show_lines=False, expand="True", box=box.ROUNDED)
     result_table.add_column(Text("Functions", style="bold"))
     for func in func_list:
+        if func in compiler_functions and not flag_all:
+            continue
         result_table.add_row(func)
     print(result_table)
 
