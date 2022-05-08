@@ -3,6 +3,7 @@ import os
 import sys
 import errno
 import json
+from typing import *
 
 from rich import print
 from rich.panel import Panel
@@ -22,7 +23,7 @@ def execute_gdb(binary_name):
     os.system(f"gdb '{binary_name}' -ex 'source gdb_script.py' -ex \
 'quit' > /dev/null")
 
-def get_function_list() -> list[str]:
+def get_function_list() -> List[str]:
     try:
         f = open("function_list.result", "r")
     except OSError as e:
